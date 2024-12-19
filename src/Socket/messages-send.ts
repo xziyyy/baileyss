@@ -5,7 +5,7 @@ import { Readable } from 'stream'
 import { proto } from '../../WAProto'
 import { DEFAULT_CACHE_TTLS, WA_DEFAULT_EPHEMERAL } from '../Defaults'
 import { AnyMessageContent, MediaConnInfo, MessageReceiptType, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig, WAMediaUploadFunctionOpts, WAMessageKey } from '../Types'
-import { aggregateMessageKeysNotFromMe, assertMediaContent, bindWaitForEvent, decryptMediaRetryData, encodeNewsletterMessage, encodeSignedDeviceIdentity, encodeWAMessage, encryptMediaRetryRequest, extractDeviceJids, generateMessageID, generateMessageIDV2, generateWAMessage, getStatusCodeForMediaRetry, getUrlFromDirectPath, getWAUploadToServer, parseAndInjectE2ESessions, unixTimestampSeconds } from '../Utils'
+import { aggregateMessageKeysNotFromMe, assertMediaContent, bindWaitForEvent, decryptMediaRetryData, encodeNewsletterMessage, encodeSignedDeviceIdentity, encodeWAMessage, encryptMediaRetryRequest, extractDeviceJids, generateMessageID, generateMessageIDV2, generateWAMessage, getStatusCodeForMediaRetry, getUrlFromDirectPath, getWAUploadToServer, normalizeMessageContent, parseAndInjectE2ESessions, unixTimestampSeconds } from '../Utils'
 import { getUrlInfo } from '../Utils/link-preview'
 import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidNewsletter, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, S_WHATSAPP_NET } from '../WABinary'
 import { makeNewsletterSocket } from './newsletter'
@@ -337,6 +337,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 		}
 
+		const extraAttrs = {}
+
 		if(participant) {
 			// when the retry request is not for a group
 			// only send to the specific device that asked for a retry
@@ -352,6 +354,13 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		await authState.keys.transaction(
 			async() => {
 				const mediaType = getMediaType(message)
+				if(mediaType) {
+					extraAttrs['mediatype'] = mediaType
+				}
+				if(normalizeMessageContent(message)?.pinInChatMessage) {
+					extraAttrs['decrypt-fail'] = 'hide'
+				}
+
 				if(isGroup || isStatus) {
 					const [groupData, senderKeyMap] = await Promise.all([
 						(async() => {
@@ -421,7 +430,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 						await assertSessions(senderKeyJids, false)
 
-						const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, mediaType ? { mediatype: mediaType } : undefined)
+						const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, extraAttrs)
 						shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || result.shouldIncludeDeviceIdentity
 
 						participants.push(...result.nodes)
@@ -490,8 +499,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						{ nodes: meNodes, shouldIncludeDeviceIdentity: s1 },
 						{ nodes: otherNodes, shouldIncludeDeviceIdentity: s2 }
 					] = await Promise.all([
-						createParticipantNodes(meJids, meMsg, mediaType ? { mediatype: mediaType } : undefined),
-						createParticipantNodes(otherJids, message, mediaType ? { mediatype: mediaType } : undefined)
+						createParticipantNodes(meJids, meMsg, extraAttrs),
+						createParticipantNodes(otherJids, message, extraAttrs)
 					])
 					participants.push(...meNodes)
 					participants.push(...otherNodes)
@@ -641,6 +650,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			return 'product'
 		} else if(message.interactiveResponseMessage) {
 			return 'native_flow_response'
+		} else if(message.groupInviteMessage) {
+			return 'url'
 		}
 	}
 
@@ -718,7 +729,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		getButtonArgs,
 		readMessages,
 		refreshMediaConn,
-	    	waUploadToServer,
+	        waUploadToServer,
 		fetchPrivacySettings,
 		getUSyncDevices,
 		createParticipantNodes,
@@ -749,7 +760,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 									}
 
 									content.directPath = media.directPath
-									content.url = getUrlFromDirectPath(content.directPath!)
+									content.url = getUrlFromDirectPath(content.directPath)
 
 									logger.debug({ directPath: media.directPath, key: result.key }, 'media update successful')
 								} catch(err) {
@@ -812,6 +823,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 									: undefined
 							},
 						),
+						getProfilePicUrl: sock.profilePictureUrl,
 						upload: async(readStream: Readable, opts: WAMediaUploadFunctionOpts) => {
 							const up = await waUploadToServer(readStream, { ...opts, newsletter: isJidNewsletter(jid) })
 							mediaHandle = up.handle
@@ -825,6 +837,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				)
 				const isDeleteMsg = 'delete' in content && !!content.delete
 				const isEditMsg = 'edit' in content && !!content.edit
+				const isPinMsg = 'pin' in content && !!content.pin
 				const additionalAttributes: BinaryNodeAttributes = { }
 				// required for delete
 				if(isDeleteMsg) {
@@ -836,6 +849,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					}
 				} else if(isEditMsg) {
 					additionalAttributes.edit = isJidNewsletter(jid) ? '3' : '1'
+				} else if(isPinMsg) {
+					additionalAttributes.edit = '2'
 				}
 
 				if (mediaHandle) {

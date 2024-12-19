@@ -1,7 +1,7 @@
 import { Boom } from '@hapi/boom'
 import { proto } from '../../WAProto'
 import { PROCESSABLE_HISTORY_TYPES } from '../Defaults'
-import { ALL_WA_PATCH_NAMES, ChatModification, ChatMutation, LTHashState, MessageUpsertType, PresenceData, SocketConfig, WABusinessHoursConfig, WABusinessProfile, WAMediaUpload, WAMessage, WAPatchCreate, WAPatchName, WAPresence, WAPrivacyCallValue, WAPrivacyOnlineValue, WAPrivacyValue, WAReadReceiptsValue } from '../Types'
+import { ALL_WA_PATCH_NAMES, ChatModification, ChatMutation, LTHashState, MessageUpsertType, PresenceData, SocketConfig, WABusinessHoursConfig, WABusinessProfile, WAMediaUpload, WAMessage, WAPatchCreate, WAPatchName, WAPresence, WAPrivacyCallValue, WAPrivacyGroupAddValue, WAPrivacyOnlineValue, WAPrivacyValue, WAReadReceiptsValue } from '../Types'
 import { generateMessageID, chatModificationToAppPatch, ChatMutationMap, decodePatches, decodeSyncdSnapshot, encodeSyncdPatch, extractSyncdPatches, generateProfilePicture, getHistoryMsg, newLTHashState, processSyncAction } from '../Utils'
 import { makeMutex } from '../Utils/make-mutex'
 import processMessage from '../Utils/process-message'
@@ -107,7 +107,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		await privacyQuery('readreceipts', value)
 	}
 
-	const updateGroupsAddPrivacy = async(value: WAPrivacyValue) => {
+	const updateGroupsAddPrivacy = async(value: WAPrivacyGroupAddValue) => {
 		await privacyQuery('groupadd', value)
 	}
 
@@ -228,11 +228,21 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 	/** update the profile picture for yourself or a group */
 	const updateProfilePicture = async(jid: string, content: WAMediaUpload) => {
+		let targetJid;
+		if(!jid) {
+			throw new Boom('Illegal no-jid profile update. Please specify either your ID or the ID of the chat you wish to update')
+		}
+
+		if(jidNormalizedUser(jid) !== jidNormalizedUser(authState.creds.me!.id)) {
+			targetJid = jidNormalizedUser(jid) // in case it is someone other than us
+		}
+
 		const { img } = await generateProfilePicture(content)
 		await query({
 			tag: 'iq',
 			attrs: {
-				to: jidNormalizedUser(jid),
+				target: targetJid,
+				to: S_WHATSAPP_NET,
 				type: 'set',
 				xmlns: 'w:profile:picture'
 			},
@@ -248,10 +258,20 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 	/** remove the profile picture for yourself or a group */
 	const removeProfilePicture = async(jid: string) => {
+		let targetJid;
+		if(!jid) {
+			throw new Boom('Illegal no-jid profile update. Please specify either your ID or the ID of the chat you wish to update')
+		}
+
+		if(jidNormalizedUser(jid) !== jidNormalizedUser(authState.creds.me!.id)) {
+			targetJid = jidNormalizedUser(jid) // in case it is someone other than us
+		}
+
 		await query({
 			tag: 'iq',
 			attrs: {
-				to: jidNormalizedUser(jid),
+				target: targetJid,
+				to: S_WHATSAPP_NET,
 				type: 'set',
 				xmlns: 'w:profile:picture'
 			}
@@ -760,8 +780,10 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		let props: { [_: string]: string } = {}
 		if(propsNode) {
 		
-		authState.creds.lastPropHash = propsNode?.attrs?.hash
-		ev.emit('creds.update', authState.creds)
+		if(propsNode.attrs?.hash) { // on some clients, the hash is returning as undefined
+				authState.creds.lastPropHash = propsNode?.attrs?.hash
+				ev.emit('creds.update', authState.creds)
+			}
 			props = reduceBinaryNodeToDictionary(propsNode, 'prop')
 		}
 

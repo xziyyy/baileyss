@@ -191,7 +191,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 				]
 			)
 			const node = getBinaryNodeChild(result, action)
-			const participantsAffected = getBinaryNodeChildren(node!, 'participant')
+			const participantsAffected = getBinaryNodeChildren(node, 'participant')
 			return participantsAffected.map(p => {
 				return { status: p.attrs.error || '200', jid: p.attrs.jid, content: p }
 			})
@@ -231,6 +231,16 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			const results = await groupQuery('@g.us', 'set', [{ tag: 'invite', attrs: { code } }])
 			const result = getBinaryNodeChild(results, 'group')
 			return result?.attrs.jid
+		},
+		/**
+		 * revoke a v4 invite for someone
+		 * @param groupJid group jid
+		 * @param invitedJid jid of person you invited
+		 * @returns true if successful
+		 */
+		groupRevokeInviteV4: async(groupJid: string, invitedJid: string) => {
+			const result = await groupQuery(groupJid, 'set', [{ tag: 'revoke', attrs: {}, content: [{ tag: 'participant', attrs: { jid: invitedJid } }] }])
+			return !!result
 		},
 		/**
 		 * accept a GroupInviteMessage

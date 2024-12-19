@@ -126,7 +126,7 @@ export const prepareWAMessageMedia = async(
 			!!uploadData.media.url &&
 			!!options.mediaCache && (
 	// generate the key
-		mediaType + ':' + uploadData.media.url!.toString()
+		mediaType + ':' + uploadData.media.url.toString()
 	)
 
 	if(mediaType === 'document' && !uploadData.fileName) {
@@ -206,11 +206,6 @@ export const prepareWAMessageMedia = async(
 				if(requiresDurationComputation) {
 					uploadData.seconds = await getAudioDuration(bodyPath!)
 					logger?.debug('computed audio duration')
-				}
-
-				if(requiresWaveformProcessing) {
-					uploadData.waveform = await getAudioWaveform(bodyPath!, logger)
-					logger?.debug('processed waveform')
 				}
 
 				if(requiresWaveformProcessing) {
@@ -398,6 +393,31 @@ export const generateWAMessageContent = async(
 			(message.disappearingMessagesInChat ? WA_DEFAULT_EPHEMERAL : 0) :
 			message.disappearingMessagesInChat
 		m = prepareDisappearingMessageSettingContent(exp)
+	} else if('groupInvite' in message) {
+		m.groupInviteMessage = {}
+		m.groupInviteMessage.inviteCode = message.groupInvite.inviteCode
+		m.groupInviteMessage.inviteExpiration = message.groupInvite.inviteExpiration
+		m.groupInviteMessage.caption = message.groupInvite.text
+		m.groupInviteMessage.groupJid = message.groupInvite.jid
+		m.groupInviteMessage.groupName = message.groupInvite.subject
+		//TODO: use built-in interface and get disappearing mode info etc.
+		//TODO: cache / use store!?
+		if(options.getProfilePicUrl) {
+			const pfpUrl = await options.getProfilePicUrl(message.groupInvite.jid, 'preview')
+			if(pfpUrl) {
+				const resp = await axios.get(pfpUrl, { responseType: 'arraybuffer' })
+				if(resp.status === 200) {
+					m.groupInviteMessage.jpegThumbnail = resp.data
+				}
+			}
+		}
+	} else if('pin' in message) {
+		m.pinInChatMessage = {}
+		m.messageContextInfo = {}
+		m.pinInChatMessage.key = message.pin
+		m.pinInChatMessage.type = message.type
+		m.pinInChatMessage.senderTimestampMs = Date.now()
+		m.messageContextInfo.messageAddOnDurationInSecs = message.type === 1 ? message.time || 86400 : 0
 	} else if('buttonReply' in message) {
 		switch (message.type) {
 		case 'template':
@@ -437,6 +457,7 @@ export const generateWAMessageContent = async(
 		m.listResponseMessage = { ...message.listReply }
 	} else if('poll' in message) {
 		message.poll.selectableCount ||= 0
+		message.poll.toAnnouncementGroup ||= false
 
 		if(!Array.isArray(message.poll.values)) {
 			throw new Boom('Invalid poll values', { statusCode: 400 })
@@ -737,7 +758,7 @@ export const extractMessageContent = (content: WAMessageContent | undefined | nu
 	content = normalizeMessageContent(content)
 
 	if(content?.buttonsMessage) {
-	  return extractFromTemplateMessage(content.buttonsMessage!)
+	  return extractFromTemplateMessage(content.buttonsMessage)
 	}
 
 	if(content?.templateMessage?.hydratedFourRowTemplate) {
