@@ -4,6 +4,7 @@ import type { Readable } from 'stream'
 import type { URL } from 'url'
 import { proto } from '../../WAProto'
 import { MEDIA_HKDF_KEY_MAPPING } from '../Defaults'
+import { BinaryNode } from '../WABinary'
 import type { GroupMetadata } from './GroupMetadata'
 import { CacheStore } from './Socket'
 
@@ -229,6 +230,7 @@ export type MessageRelayOptions = MinimalRelayOptions & {
     participant?: { jid: string, count: number }
     /** additional attributes to add to the WA binary node */
     additionalAttributes?: { [_: string]: string }
+    additionalNodes?: BinaryNode[]
     /** should we use the devices cache, or fetch afresh from the server; default assumed to be "true" */
     useUserDevicesCache?: boolean
     /** jid list of participants for status@broadcast */

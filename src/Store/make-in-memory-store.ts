@@ -103,8 +103,13 @@ export default (config: BaileysInMemoryStoreConfig) => {
 			chats: newChats,
 			contacts: newContacts,
 			messages: newMessages,
-			isLatest
+			isLatest,
+			syncType
 		}) => {
+			if(syncType === proto.HistorySync.HistorySyncType.ON_DEMAND) {
+				return // FOR NOW,
+				//TODO: HANDLE
+			}
 			if(isLatest) {
 				chats.clear()
 
