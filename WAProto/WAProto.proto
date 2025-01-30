@@ -40,6 +40,97 @@ message ADVSignedKeyIndexList {
     optional bytes accountSignatureKey = 3;
 }
 
+message AIRichResponseMessage {
+    optional AIRichResponseMessageType messageType = 1;
+    repeated AIRichResponseSubMessage submessages = 2;
+    message AIRichResponseCodeMetadata {
+        optional string codeLanguage = 1;
+        repeated AIRichResponseCodeBlock codeBlocks = 2;
+        message AIRichResponseCodeBlock {
+            optional AIRichResponseMessage.AIRichResponseCodeMetadata.AIRichResponseCodeHighlightType highlightType = 1;
+            optional string codeContent = 2;
+        }
+        
+        enum AIRichResponseCodeHighlightType {
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT = 0;
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD = 1;
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_METHOD = 2;
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_STRING = 3;
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_NUMBER = 4;
+            AI_RICH_RESPONSE_CODE_HIGHLIGHT_COMMENT = 5;
+        }
+    }
+    
+    message AIRichResponseDynamicMetadata {
+        optional AIRichResponseDynamicMetadataType type = 1;
+        optional uint64 version = 2;
+        optional string url = 3;
+        optional uint32 loopCount = 4;
+        enum AIRichResponseDynamicMetadataType {
+            AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_UNKNOWN = 0;
+            AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_IMAGE = 1;
+            AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_GIF = 2;
+        }
+    }
+    
+    message AIRichResponseGridImageMetadata {
+        optional AIRichResponseMessage.AIRichResponseImageURL gridImageUrl = 1;
+        repeated AIRichResponseMessage.AIRichResponseImageURL imageUrls = 2;
+    }
+    
+    message AIRichResponseImageURL {
+        optional string imagePreviewUrl = 1;
+        optional string imageHighResUrl = 2;
+        optional string sourceUrl = 3;
+    }
+    
+    message AIRichResponseInlineImageMetadata {
+        optional AIRichResponseMessage.AIRichResponseImageURL imageUrl = 1;
+        optional string imageText = 2;
+        optional AIRichResponseImageAlignment alignment = 3;
+        optional string tapLinkUrl = 4;
+        enum AIRichResponseImageAlignment {
+            AI_RICH_RESPONSE_IMAGE_LAYOUT_LEADING_ALIGNED = 0;
+            AI_RICH_RESPONSE_IMAGE_LAYOUT_TRAILING_ALIGNED = 1;
+            AI_RICH_RESPONSE_IMAGE_LAYOUT_CENTER_ALIGNED = 2;
+        }
+    }
+    
+    enum AIRichResponseMessageType {
+        AI_RICH_RESPONSE_TYPE_UNKNOWN = 0;
+        AI_RICH_RESPONSE_TYPE_STANDARD = 1;
+        AI_RICH_RESPONSE_TYPE_ARTIFACTS = 2;
+    }
+    message AIRichResponseSubMessage {
+        optional AIRichResponseMessage.AIRichResponseSubMessageType messageType = 1;
+        optional AIRichResponseMessage.AIRichResponseGridImageMetadata gridImageMetadata = 2;
+        optional string messageText = 3;
+        optional AIRichResponseMessage.AIRichResponseInlineImageMetadata imageMetadata = 4;
+        optional AIRichResponseMessage.AIRichResponseCodeMetadata codeMetadata = 5;
+        optional AIRichResponseMessage.AIRichResponseTableMetadata tableMetadata = 6;
+        optional AIRichResponseMessage.AIRichResponseDynamicMetadata dynamicMetadata = 7;
+    }
+    
+    enum AIRichResponseSubMessageType {
+        AI_RICH_RESPONSE_UNKNOWN = 0;
+        AI_RICH_RESPONSE_GRID_IMAGE = 1;
+        AI_RICH_RESPONSE_TEXT = 2;
+        AI_RICH_RESPONSE_INLINE_IMAGE = 3;
+        AI_RICH_RESPONSE_TABLE = 4;
+        AI_RICH_RESPONSE_CODE = 5;
+        AI_RICH_RESPONSE_DYNAMIC = 6;
+    }
+    message AIRichResponseTableMetadata {
+        repeated AIRichResponseTableRow rows = 1;
+        message AIRichResponseTableRow {
+            repeated string items = 1;
+            optional bool isHeading = 2;
+        }
+        
+    }
+    
+}
+
 message ActionLink {
     optional string url = 1;
     optional string buttonTitle = 2;
@@ -119,6 +210,8 @@ message BotCapabilityMetadata {
         RICH_RESPONSE_THREAD_SURFING = 5;
         RICH_RESPONSE_TABLE = 6;
         RICH_RESPONSE_CODE = 7;
+        RICH_RESPONSE_STRUCTURED_RESPONSE = 8;
+        RICH_RESPONSE_INLINE_IMAGE = 9;
         WA_IG_1P_PLUGIN_RANKING_CONTROL = 10;
         WA_IG_1P_PLUGIN_RANKING_UPDATE_1 = 11;
         WA_IG_1P_PLUGIN_RANKING_UPDATE_2 = 12;
@@ -130,6 +223,8 @@ message BotCapabilityMetadata {
         WA_IG_1P_PLUGIN_RANKING_UPDATE_8 = 18;
         WA_IG_1P_PLUGIN_RANKING_UPDATE_9 = 19;
         WA_IG_1P_PLUGIN_RANKING_UPDATE_10 = 20;
+        RICH_RESPONSE_SUB_HEADING = 21;
+        RICH_RESPONSE_GRID_IMAGE = 22;
     }
 }
 
@@ -307,6 +402,7 @@ message BotSessionMetadata {
 }
 
 enum BotSessionSource {
+    NONE = 0;
     NULL_STATE = 1;
     TYPEAHEAD = 2;
     USER_INPUT = 3;
@@ -499,6 +595,7 @@ message ClientPayload {
             HARDCODED = 2;
             OVERRIDE = 3;
             FALLBACK = 4;
+            MNS = 5;
         }
     }
     
@@ -623,6 +720,7 @@ message ClientPayload {
             WIN_STORE = 2;
             DARWIN = 3;
             WIN32 = 4;
+            WIN_HYBRID = 5;
         }
         message WebdPayload {
             optional bool usesParticipantInKey = 1;
@@ -769,6 +867,7 @@ message ContextInfo {
         optional bool cannotBeReactedTo = 1;
         optional bool cannotBeRanked = 2;
         optional bool canRequestFeedback = 3;
+        optional bool canBeReshared = 4;
     }
     
     message ForwardedAIBotMessageInfo {
@@ -793,6 +892,7 @@ message ContextInfo {
     enum StatusAttributionType {
         NONE = 0;
         RESHARED_FROM_MENTION = 1;
+        RESHARED_FROM_POST = 2;
     }
     message UTMInfo {
         optional string utmSource = 1;
@@ -1344,6 +1444,7 @@ message Message {
     optional FutureProofMessage pollCreationMessageV5 = 94;
     optional FutureProofMessage statusAddYours = 95;
     optional FutureProofMessage groupStatusMessage = 96;
+    optional AIRichResponseMessage richResponseMessage = 97;
     message AlbumMessage {
         optional uint32 expectedImageCount = 2;
         optional uint32 expectedVideoCount = 3;
@@ -1433,6 +1534,9 @@ message Message {
             BOT_FEEDBACK_NEGATIVE_REFUSED = 7;
             BOT_FEEDBACK_NEGATIVE_NOT_VISUALLY_APPEALING = 8;
             BOT_FEEDBACK_NEGATIVE_NOT_RELEVANT_TO_TEXT = 9;
+            BOT_FEEDBACK_NEGATIVE_PERSONALIZED = 10;
+            BOT_FEEDBACK_NEGATIVE_CLARITY = 11;
+            BOT_FEEDBACK_NEGATIVE_DOESNT_LOOK_LIKE_THE_PERSON = 12;
         }
         enum BotFeedbackKindMultipleNegative {
             BOT_FEEDBACK_MULTIPLE_NEGATIVE_GENERIC = 1;
@@ -1665,7 +1769,6 @@ message Message {
     message ExtendedTextMessage {
         optional string text = 1;
         optional string matchedText = 2;
-        optional string canonicalUrl = 4;
         optional string description = 5;
         optional string title = 6;
         optional fixed32 textArgb = 7;
@@ -2210,7 +2313,6 @@ message Message {
                 optional string title = 2;
                 optional string description = 3;
                 optional bytes thumbData = 4;
-                optional string canonicalUrl = 5;
                 optional string matchText = 6;
                 optional string previewType = 7;
                 optional LinkPreviewHighQualityThumbnail hqThumbnail = 8;
@@ -2753,6 +2855,7 @@ message MsgOpaqueData {
     }
     message PollOption {
         optional string name = 1;
+        optional string hash = 2;
     }
     
     message PollVoteSnapshot {

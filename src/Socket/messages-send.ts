@@ -872,10 +872,13 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					} else {
 						additionalAttributes.edit = '7'
 					}
+				// required for edit message
 				} else if(isEditMsg) {
 					additionalAttributes.edit = isJidNewsletter(jid) ? '3' : '1'
+				// required for pin message
 				} else if(isPinMsg) {
 					additionalAttributes.edit = '2'
+				// required for polling message
 				} else if(isPollMessage) {
 					additionalNodes.push({
 						tag: 'meta',
@@ -883,6 +886,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							polltype: 'creation'
 						},
 					} as BinaryNode)
+				// required to display AI icon on message
 				} else if(isAiMsg) {
 					additionalNodes.push({
 						attrs: {
