@@ -59,7 +59,7 @@ const MessageTypeProto = {
 	'video': WAProto.Message.VideoMessage,
 	'audio': WAProto.Message.AudioMessage,
 	'sticker': WAProto.Message.StickerMessage,
-   	'document': WAProto.Message.DocumentMessage,
+	'document': WAProto.Message.DocumentMessage,
 } as const
 
 const ButtonType = proto.Message.ButtonsMessage.HeaderType
@@ -229,8 +229,13 @@ export const prepareWAMessageMedia = async(
 				}
 				// remove tmp files
 				if(didSaveToTmpPath && bodyPath) {
-					await fs.unlink(bodyPath)
-					logger?.debug('removed tmp files')
+					try {
+						await fs.access(bodyPath)
+						await fs.unlink(bodyPath)
+						logger?.debug('removed tmp file')
+					} catch(error) {
+						logger?.warn('failed to remove tmp file')
+					}
 				}
 			}
 		)
@@ -418,6 +423,24 @@ export const generateWAMessageContent = async(
 		m.pinInChatMessage.type = message.type
 		m.pinInChatMessage.senderTimestampMs = Date.now()
 		m.messageContextInfo.messageAddOnDurationInSecs = message.type === 1 ? message.time || 86400 : 0
+	} else if('keep' in message) {
+		m.keepInChatMessage = {};
+		m.keepInChatMessage.key = message.keep;
+		m.keepInChatMessage.keepType = message.type;
+		m.keepInChatMessage.timestampMs = Date.now();
+	} else if('call' in message) {
+		m = {
+			scheduledCallCreationMessage: {
+				scheduledTimestampMs: message.call.time ?? Date.now(),
+				callType: message.call.type ?? 1, 
+				title: message.call.title
+			}
+		}
+	} else if ('paymentInvite' in message) {
+		m.paymentInviteMessage = {
+			serviceType: message.paymentInvite.type, 
+			expiryTimestamp: message.paymentInvite.expiry
+		}
 	} else if('buttonReply' in message) {
 		switch (message.type) {
 		case 'template':
@@ -453,6 +476,20 @@ export const generateWAMessageContent = async(
 				productImage: imageMessage,
 			}
 		})
+	} else if ('order' in message) {
+		m.orderMessage = WAProto.Message.OrderMessage.fromObject({
+			orderId: message.order.id,
+			thumbnail: message.order.thumbnail,
+			itemCount: message.order.itemCount,
+			status: message.order.status,
+			surface: message.order.surface,
+			orderTitle: message.order.title,
+			message: message.order.text,
+			sellerJid: message.order.seller,
+			token: message.order.token,
+			totalAmount1000: message.order.amount,
+			totalCurrencyCode: message.order.currency
+		})
 	} else if('listReply' in message) {
 		m.listResponseMessage = { ...message.listReply }
 	} else if('poll' in message) {
@@ -478,11 +515,69 @@ export const generateWAMessageContent = async(
 			messageSecret: message.poll.messageSecret || randomBytes(32),
 		}
 
-		m.pollCreationMessage = {
+		const pollCreationMessage = {
 			name: message.poll.name,
 			selectableOptionsCount: message.poll.selectableCount,
 			options: message.poll.values.map(optionName => ({ optionName })),
 		}
+		
+		if(message.poll.toAnnouncementGroup) {
+			// poll v2 is for community announcement groups (single select and multiple)
+			m.pollCreationMessageV2 = pollCreationMessage
+		} else {
+			if(message.poll.selectableCount > 0) {
+				// poll v3 is for single select polls
+				m.pollCreationMessageV3 = pollCreationMessage
+			} else {
+				// poll v3 for multiple choice polls
+				m.pollCreationMessage = pollCreationMessage
+			}
+		}
+	} else if('event' in message) {
+		m.messageContextInfo = {
+			messageSecret: message.event.messageSecret || randomBytes(32), 
+		}
+		m.eventMessage = { ...message.event }
+	} else if('inviteAdmin' in message) {
+		m.newsletterAdminInviteMessage = {};
+		m.newsletterAdminInviteMessage.inviteExpiration = message.inviteAdmin.inviteExpiration;
+		m.newsletterAdminInviteMessage.caption = message.inviteAdmin.text;
+		m.newsletterAdminInviteMessage.newsletterJid = message.inviteAdmin.jid;
+		m.newsletterAdminInviteMessage.newsletterName = message.inviteAdmin.subject;
+		m.newsletterAdminInviteMessage.jpegThumbnail = message.inviteAdmin.thumbnail;
+	} else if ('requestPayment' in message) {  
+		const sticker = message?.requestPayment?.sticker ?
+			await prepareWAMessageMedia(
+				{ sticker: message?.requestPayment?.sticker, ...options },
+				options
+			)
+			: null
+		let notes = {}
+		if(message?.requestPayment?.sticker) {
+			notes = {
+				stickerMessage: {
+					...sticker?.stickerMessage,
+					contextInfo: message?.requestPayment?.contextInfo
+				}
+			}
+		} else if(message.requestPayment.note) {
+			notes = {
+				extendedTextMessage: {
+					text: message.requestPayment.note,
+					contextInfo: message?.requestPayment?.contextInfo,
+				}
+			}
+		} else {
+			throw new Boom('Invalid media type', { statusCode: 400 })
+		}
+		m.requestPaymentMessage = WAProto.Message.RequestPaymentMessage.fromObject({
+			expiryTimestamp: message.requestPayment.expiry,
+			amount1000: message.requestPayment.amount,
+			currencyCodeIso4217: message.requestPayment.currency,
+			requestFrom: message.requestPayment.from,
+			noteMessage: { ...notes },
+			background: message.requestPayment.background ?? null,
+		})
 	} else if('sharePhoneNumber' in message) {
 		m.protocolMessage = {
 			type: proto.Message.ProtocolMessage.Type.SHARE_PHONE_NUMBER
@@ -514,14 +609,27 @@ export const generateWAMessageContent = async(
 			Object.assign(buttonsMessage, m)
 		}
 
+		if('title' in message && !!message.title) {
+			buttonsMessage.text = message.title,
+			buttonsMessage.headerType = ButtonType.TEXT
+		}
+
 		if('footer' in message && !!message.footer) {
 			buttonsMessage.footerText = message.footer
+		}
+
+		if('contextInfo' in message && !!message.contextInfo) {
+			buttonsMessage.contextInfo = message.contextInfo
+		}
+
+		if('mentions' in message && !!message.mentions) {
+			buttonsMessage.contextInfo = { mentionedJid: message.mentions }
 		}
 
 		m = { buttonsMessage }
 	} else if('templateButtons' in message && !!message.templateButtons) {
 		const msg: proto.Message.TemplateMessage.IHydratedFourRowTemplate = {
-			hydratedButtons: message.templateButtons
+			hydratedButtons: message.hasOwnProperty("templateButtons") ? message.templateButtons : message.templateButtons
 		}
 
 		if('text' in message) {
@@ -558,6 +666,102 @@ export const generateWAMessageContent = async(
 		}
 
 		m = { listMessage }
+	}
+
+	if ('interactiveButtons' in message && !!message.interactiveButtons) {
+		const interactiveMessage: proto.Message.IInteractiveMessage = {
+			nativeFlowMessage: WAProto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+				buttons: message.interactiveButtons,
+			})
+		};
+
+		if ('text' in message) {
+			interactiveMessage.body = {
+				text: message.text
+			};
+		} else if ('caption' in message) {
+			interactiveMessage.body = {
+				text: message.caption
+			}
+
+			interactiveMessage.header = {
+				title: message.title,
+				subtitle: message.subtitle,
+				hasMediaAttachment: message?.media ?? false,
+			};
+
+			Object.assign(interactiveMessage.header, m);
+		}
+
+		if ('footer' in message && !!message.footer) {
+			interactiveMessage.footer = {
+				text: message.footer
+			};
+		}
+
+		if ('title' in message && !!message.title) {
+			interactiveMessage.header = {
+				title: message.title,
+				subtitle: message.subtitle,
+				hasMediaAttachment: message?.media ?? false,
+			};
+
+			Object.assign(interactiveMessage.header, m);
+		}
+
+		if ('contextInfo' in message && !!message.contextInfo) {
+			interactiveMessage.contextInfo = message.contextInfo;
+		}
+
+		if ('mentions' in message && !!message.mentions) {
+			interactiveMessage.contextInfo = { mentionedJid: message.mentions };
+		}
+
+		m = { interactiveMessage };
+	}
+
+	if ('shop' in message && !!message.shop) {
+		const interactiveMessage: proto.Message.IInteractiveMessage = {
+			shopStorefrontMessage: WAProto.Message.InteractiveMessage.ShopMessage.fromObject({
+				surface: message.shop,
+				id: message.id
+			})
+		};
+		if ('text' in message) {
+			interactiveMessage.body = {
+				text: message.text
+			};
+		} else if ('caption' in message) {
+			interactiveMessage.body = {
+				text: message.caption
+			}
+			interactiveMessage.header = {
+				title: message.title,
+				subtitle: message.subtitle,
+				hasMediaAttachment: message?.media ?? false,
+			};
+			Object.assign(interactiveMessage.header, m);
+		}
+		if ('footer' in message && !!message.footer) {
+			interactiveMessage.footer = {
+				text: message.footer
+			};
+		}
+		if ('title' in message && !!message.title) {
+			interactiveMessage.header = {
+				title: message.title,
+				subtitle: message.subtitle,
+				hasMediaAttachment: message?.media ?? false,
+			};
+			Object.assign(interactiveMessage.header, m);
+		}
+		if ('contextInfo' in message && !!message.contextInfo) {
+			interactiveMessage.contextInfo = message.contextInfo;
+		}
+		if ('mentions' in message && !!message.mentions) {
+			interactiveMessage.contextInfo = { mentionedJid: message.mentions };
+		}
+		m = { interactiveMessage };
 	}
 
 	if('viewOnce' in message && !!message.viewOnce) {
@@ -614,25 +818,25 @@ export const generateWAMessageFromContent = (
 		const msgType = getContentType(quotedMsg)!
 		// strip any redundant properties
 		if(quotedMsg) {
-		    quotedMsg = proto.Message.fromObject({ [msgType]: quotedMsg[msgType] })
+			quotedMsg = proto.Message.fromObject({ [msgType]: quotedMsg[msgType] })
 
-		    const quotedContent = quotedMsg[msgType]
-		    if(typeof quotedContent === 'object' && quotedContent && 'contextInfo' in quotedContent) {
-			    delete quotedContent.contextInfo
-		    }
+			const quotedContent = quotedMsg[msgType]
+			if(typeof quotedContent === 'object' && quotedContent && 'contextInfo' in quotedContent) {
+				delete quotedContent.contextInfo
+			}
 
-		    const contextInfo: proto.IContextInfo = innerMessage[key].contextInfo || { }
-		    contextInfo.participant = jidNormalizedUser(participant!)
-		    contextInfo.stanzaId = quoted.key.id
-		    contextInfo.quotedMessage = quotedMsg
+			const contextInfo: proto.IContextInfo = innerMessage[key].contextInfo || { }
+			contextInfo.participant = jidNormalizedUser(participant!)
+			contextInfo.stanzaId = quoted.key.id
+			contextInfo.quotedMessage = quotedMsg
 
-		    // if a participant is quoted, then it must be a group
-		    // hence, remoteJid of group must also be entered
-		    if(jid !== quoted.key.remoteJid) {
-			    contextInfo.remoteJid = quoted.key.remoteJid
-		    }
+			// if a participant is quoted, then it must be a group
+			// hence, remoteJid of group must also be entered
+			if(jid !== quoted.key.remoteJid) {
+				contextInfo.remoteJid = quoted.key.remoteJid
+			}
 
-		    innerMessage[key].contextInfo = contextInfo
+			innerMessage[key].contextInfo = contextInfo
 		}
 	}
 
@@ -727,6 +931,18 @@ export const normalizeMessageContent = (content: WAMessageContent | null | undef
 			 || message?.viewOnceMessageV2
 			 || message?.viewOnceMessageV2Extension
 			 || message?.editedMessage
+			 || message?.groupMentionedMessage
+			 || message?.botInvokeMessage
+			 || message?.lottieStickerMessage
+			 || message?.eventCoverImage
+			 || message?.statusMentionMessage
+			 || message?.pollCreationOptionImageMessage
+			 || message?.associatedChildMessage
+			 || message?.groupStatusMentionMessage
+			 || message?.pollCreationMessageV4
+			 || message?.pollCreationMessageV5
+			 || message?.statusAddYours
+			 || message?.groupStatusMessage
 		 )
 	 }
 }

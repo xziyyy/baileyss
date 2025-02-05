@@ -737,7 +737,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
-	const handleReceipt = async(node: BinaryNode, offline: boolean) => {
+	const handleReceipt = async(node: BinaryNode) => {
 		const { attrs, content } = node
 		const isLid = attrs.from.includes('lid')
 		const isNodeFromMe = areJidsSameUser(attrs.participant || attrs.from, isLid ? authState.creds.me?.lid : authState.creds.me?.id)
@@ -829,7 +829,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
-	const handleNotification = async(node: BinaryNode, offline: boolean) => {
+	const handleNotification = async(node: BinaryNode) => {
 		const remoteJid = node.attrs.from
 		if(shouldIgnoreJid(remoteJid) && remoteJid !== '@s.whatsapp.net') {
 			logger.debug({ remoteJid, id: node.attrs.id }, 'ignored notification')
@@ -865,12 +865,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
-	const handleMessage = async(node: BinaryNode, offline: boolean) => {
-		if(offline) {
-			await sendMessageAck(node)
-			return
-		}
-
+	const handleMessage = async(node: BinaryNode) => {
 		if(shouldIgnoreJid(node.attrs.from) && node.attrs.from !== '@s.whatsapp.net') {
 			logger.debug({ key: node.attrs.key }, 'ignored message')
 			await sendMessageAck(node)
@@ -1136,7 +1131,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const makeOfflineNodeProcessor = () => {
-		const nodeProcessorMap: Map<MessageType, (node: BinaryNode, offline: boolean) => Promise<void>> = new Map([
+		const nodeProcessorMap: Map<MessageType, (node: BinaryNode) => Promise<void>> = new Map([
 			['message', handleMessage],
 			['call', handleCall],
 			['receipt', handleReceipt],
@@ -1161,7 +1156,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						)
 						continue
 					}
-					await nodeProcessor(node, true)
+					await nodeProcessor(node)
 				}
 				isProcessing = false
 			}
@@ -1171,7 +1166,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const offlineNodeProcessor = makeOfflineNodeProcessor()
-	const processNode = (type: MessageType, node: BinaryNode, identifier: string, exec: (node: BinaryNode, offline: boolean) => Promise<void>) => {
+	const processNode = (type: MessageType, node: BinaryNode, identifier: string, exec: (node: BinaryNode) => Promise<void>) => {
 		const isOffline = !!node.attrs.offline
 		if(isOffline) {
 			offlineNodeProcessor.enqueue(type, node)

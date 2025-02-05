@@ -71,8 +71,26 @@ type Templatable = {
 
     footer?: string
 }
+type Interactiveable = {
+    /** add buttons to the message  */
+    interactiveButtons?: proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton[]
+    title?: string
+    subtitle?: string
+    media?: boolean
+}
+type Shopable = {
+    shop?: proto.Message.InteractiveMessage.ShopMessage.Surface
+    id?: string
+    title?: string
+    subtitle?: string
+    media?: boolean
+}
+type Cardsable = {
+    cards?: string[]
+    subtitle?: string
+}
 type Editable = {
-  edit?: WAMessageKey
+    edit?: WAMessageKey
 }
 type Listable = {
     /** Sections of the List */
@@ -115,7 +133,7 @@ export type AnyMediaMessageContent = (
         image: WAMediaUpload
         caption?: string
         jpegThumbnail?: string
-    } & Mentionable & Contextable & Buttonable & Templatable & WithDimensions)
+    } & Mentionable & Contextable & Buttonable & Templatable & Interactiveable & Shopable & Cardsable & WithDimensions)
     | ({
         video: WAMediaUpload
         caption?: string
@@ -123,7 +141,7 @@ export type AnyMediaMessageContent = (
         jpegThumbnail?: string
         /** if set to true, will send as a `video note` */
         ptv?: boolean
-    } & Mentionable & Contextable & Buttonable & Templatable & WithDimensions)
+    } & Mentionable & Contextable & Buttonable & Templatable & Interactiveable & Shopable & Cardsable & WithDimensions)
     | {
         audio: WAMediaUpload
         /** if set to true, will send as a `voice note` */
@@ -139,7 +157,7 @@ export type AnyMediaMessageContent = (
         mimetype: string
         fileName?: string
         caption?: string
-    } & Contextable & Buttonable & Templatable))
+    } & Contextable & Buttonable & Templatable & Interactiveable & Shopable & Cardsable))
     & { mimetype?: string } & Editable
 
 export type ButtonReplyInfo = {
@@ -156,6 +174,60 @@ export type GroupInviteInfo = {
     subject: string
 }
 
+export type CallCreationInfo = {
+    time?: number
+    title?: string
+    type?: number
+}
+
+export type AdminInviteInfo = {
+    inviteExpiration: number
+    text: string
+    jid: string
+    subject: string
+    thumbnail: Buffer
+}
+
+export type PaymentInviteInfo = {
+    type?: number
+    expiry?: number
+}
+
+export type RequestPaymentInfo = {
+    expiry: number
+    amount: number
+    currency: string
+    from: string
+    note?: string
+    sticker?: WAMediaUpload
+    background: string
+    /** add contextInfo to the message */
+    contextInfo?: proto.IContextInfo
+}
+
+export type EventsInfo = {
+    isCanceled?: boolean
+    name: string
+    description: string
+    joinLink?: string
+    startTime?: number
+    messageSecret?: Uint8Array
+}
+
+export type OrderInfo = {
+    id: number
+    thumbnail: string
+    itemCount: number
+    status: number
+    surface: number
+    title: string
+    text: string
+    seller: string
+    token: string
+    amount: number
+    currency: string
+}
+
 export type WASendableProduct = Omit<proto.Message.ProductMessage.IProductSnapshot, 'productImage'> & {
     productImage: WAMediaUpload
 }
@@ -165,7 +237,7 @@ export type AnyRegularMessageContent = (
 	    text: string
         linkPreview?: WAUrlInfo | null
     }
-    & Mentionable & Contextable & Buttonable & Templatable & Listable & Editable)
+    & Mentionable & Contextable & Buttonable & Templatable & Interactiveable & Shopable & Cardsable & Listable & Editable)
     | AnyMediaMessageContent
     | ({
         poll: PollMessageOptions
@@ -199,11 +271,41 @@ export type AnyRegularMessageContent = (
         time?: 86400 | 604800 | 2592000
     }
     | {
+        keep: WAMessageKey
+        type: number
+        /**
+         * 24 hours, 7 days, 90 days
+         */
+        time?: 86400 | 604800 | 7776000
+    }
+    | {
+        paymentInvite: PaymentInviteInfo
+    }
+    | {
+        requestPayment: RequestPaymentInfo
+    }
+    | {
+        event: EventsInfo
+    }
+    | {
+        order: OrderInfo
+    }
+    | {
+        call: CallCreationInfo
+    } 
+    | {
+        inviteAdmin: AdminInviteInfo
+    }
+    | {
+        listReply: Omit<proto.Message.IListResponseMessage, 'contextInfo'>
+    }
+    | ({
         product: WASendableProduct
         businessOwnerJid?: string
         body?: string
         footer?: string
-    } | SharePhoneNumber | RequestPhoneNumber
+    } & Mentionable & Contextable & Interactiveable & Shopable & Cardsable & WithDimensions)
+    | SharePhoneNumber | RequestPhoneNumber
 ) & ViewOnce
 
 export type AnyMessageContent = AnyRegularMessageContent | {

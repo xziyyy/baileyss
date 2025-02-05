@@ -170,7 +170,7 @@ const encodeBinaryNodeInner = (
 		for(let i = 0;i < str.length;i++) {
 			const char = str[i]
 			const isInNibbleRange = char >= '0' && char <= '9'
-			if(!isInNibbleRange && !(char >= 'A' && char <= 'F') && !(char >= 'a' && char <= 'f')) {
+			if(!isInNibbleRange && !(char >= 'A' && char <= 'F')) {
 				return false
 			}
 		}
@@ -188,6 +188,8 @@ const encodeBinaryNodeInner = (
 			pushByte(tokenIndex.index)
 		} else if(isNibble(str)) {
 			writePackedBytes(str, 'nibble')
+		} else if(isHex(str)) {
+			writePackedBytes(str, 'hex')
 		} else if(str) {
 			const decodedJid = jidDecode(str)
 			if(decodedJid) {

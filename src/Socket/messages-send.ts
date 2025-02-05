@@ -585,7 +585,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				if(additionalNodes && additionalNodes.length > 0) {
                    (stanza.content as BinaryNode[]).push(...additionalNodes);
 				} else {
-	 			   if((isJidGroup(jid) || isJidUser(jid)) && (message?.viewOnceMessage ? message?.viewOnceMessage : message?.viewOnceMessageV2 ? message?.viewOnceMessageV2 : message?.viewOnceMessageV2Extension ? message?.viewOnceMessageV2Extension : message?.ephemeralMessage ? message?.ephemeralMessage : message?.templateMessage ? message?.templateMessage : message?.interactiveMessage ? message?.interactiveMessage : message?.buttonsMessage)) {
+	 			   if((isJidGroup(jid) || isJidUser(jid)) && (message?.viewOnceMessage?.message?.interactiveMessage || message?.viewOnceMessageV2?.message?.interactiveMessage || message?.viewOnceMessageV2Extension?.message?.interactiveMessage || message?.interactiveMessage) || (message?.viewOnceMessage?.message?.buttonsMessage || message?.viewOnceMessageV2?.message?.buttonsMessage || message?.viewOnceMessageV2Extension?.message?.buttonsMessage || message?.buttonsMessage)) {
 					(stanza.content as BinaryNode[]).push({
 						tag: 'biz',
 						attrs: {},
@@ -614,7 +614,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	const getMessageType = (message: proto.IMessage) => {
-		if(message.pollCreationMessage || message.pollCreationMessageV2 || message.pollCreationMessageV3) {
+		if(message.pollCreationMessage || message.pollCreationMessageV2 || message.pollCreationMessageV3 || message.pollUpdateMessage) {
 			return 'poll'
 		}
 		return 'text'
@@ -860,6 +860,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				const isDeleteMsg = 'delete' in content && !!content.delete
 				const isEditMsg = 'edit' in content && !!content.edit
 				const isPinMsg = 'pin' in content && !!content.pin
+				const isKeepMsg = 'keep' in content && content.keep
 				const isPollMessage = 'poll' in content && !!content.poll
 				const isAiMsg = 'ai' in content && !!content.ai
 				const additionalAttributes: BinaryNodeAttributes = { }
@@ -878,6 +879,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				// required for pin message
 				} else if(isPinMsg) {
 					additionalAttributes.edit = '2'
+				// required for keep message
+				} else if(isKeepMsg) {
+					additionalAttributes.edit = '6'
 				// required for polling message
 				} else if(isPollMessage) {
 					additionalNodes.push({
