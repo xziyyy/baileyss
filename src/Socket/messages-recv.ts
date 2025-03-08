@@ -1,4 +1,5 @@
 
+import Long = require('long');
 import { Boom } from '@hapi/boom'
 import { randomBytes } from 'crypto'
 import NodeCache from '@cacheable/node-cache'
@@ -980,7 +981,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		if(!authState.creds.me?.id) {
 			throw new Boom('Not authenticated')
 		}
-		const pdoMessage = {
+		const pdoMessage: proto.Message.IPeerDataOperationRequestMessage = {
 			historySyncOnDemandRequest: {
 				chatJid: oldestMsgKey.remoteJid,
 				oldestMsgFromMe: oldestMsgKey.fromMe,
