@@ -1,5 +1,4 @@
 import { AxiosRequestConfig } from 'axios'
-import type { Logger } from 'pino'
 import type { Readable } from 'stream'
 import type { URL } from 'url'
 import { proto } from '../../WAProto'
@@ -7,6 +6,7 @@ import { MEDIA_HKDF_KEY_MAPPING } from '../Defaults'
 import { BinaryNode } from '../WABinary'
 import type { GroupMetadata } from './GroupMetadata'
 import { CacheStore } from './Socket'
+import { ILogger } from '../Utils/logger'
 
 // export the WAMessage Prototypes
 export { proto as WAProto }
@@ -369,7 +369,7 @@ export type WAMediaUploadFunctionOpts = { fileEncSha256B64: string, mediaType: M
 export type WAMediaUploadFunction = (readStream: Readable | Buffer, opts: WAMediaUploadFunctionOpts) => Promise<{ mediaUrl: string, directPath: string, handle?: string }>
 
 export type MediaGenerationOptions = {
-	logger?: Logger
+	logger?: ILogger
     mediaTypeOverride?: MediaType
     upload: WAMediaUploadFunction
     /** cache media so it does not have to be uploaded again */

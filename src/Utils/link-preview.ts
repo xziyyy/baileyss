@@ -1,5 +1,5 @@
 import { AxiosRequestConfig } from 'axios'
-import { Logger } from 'pino'
+import { ILogger } from './logger'
 import { WAMediaUploadFunction, WAUrlInfo } from '../Types'
 import { prepareWAMessageMedia } from './messages'
 import { extractImageThumb, getHttpStream } from './messages-media'
@@ -25,7 +25,7 @@ export type URLGenerationOptions = {
 		headers?: AxiosRequestConfig<{}>['headers']
 	}
 	uploadImage?: WAMediaUploadFunction
-	logger?: Logger
+	logger?: ILogger
 }
 
 /**

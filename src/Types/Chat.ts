@@ -10,6 +10,8 @@ export type WAPrivacyValue = 'all' | 'contacts' | 'contact_blacklist' | 'none'
 
 export type WAPrivacyCallValue = 'all' | 'known'
 
+export type WAPrivacyMessagesValue = 'all' | 'contacts'
+
 export type WAPrivacyOnlineValue = 'all' | 'match_last_seen'
 
 export type WAPrivacyGroupAddValue = 'all' | 'contacts' | 'contact_blacklist'
