@@ -406,6 +406,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						if(!isStatus) {
 							additionalAttributes = {
 								...additionalAttributes,
+								// eslint-disable-next-line camelcase
 								addressing_mode: groupData?.addressingMode || 'pn'
 							}
 						}
