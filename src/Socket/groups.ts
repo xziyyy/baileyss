@@ -328,14 +328,14 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 	let desc: string | undefined
 	let descId: string | undefined
 	let descOwner: string | undefined
-	let descOwnerPhoneNumber: string | undefined
+	let descOwnerPn: string | undefined
 	let descTime: number | undefined
 	if(descChild) {
 		desc = getBinaryNodeChildString(descChild, 'body')
 		descOwner = descChild.attrs.participant
-		descOwnerPhoneNumber = descChild.attrs.participant_pn
+		descOwnerPn = descChild.attrs.participant_pn ? jidNormalizedUser(descChild.attrs.participant_pn) : undefined
 		descId = descChild.attrs.id
-		descTime = +descChild.attrs.t
+		descTime = descChild.attrs.t ? +descChild.attrs.t : undefined
 	}
 
 	const groupSize = group.attrs.size ? Number(group.attrs.size) : undefined
@@ -344,18 +344,19 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 	const memberAddMode = getBinaryNodeChildString(group, 'member_add_mode') === 'all_member_add'
 	const metadata: GroupMetadata = {
 		id: groupId,
-		addressingMode: group.attrs.addressing_mode as "pn" | "lid",
+		addressingMode: group.attrs.addressing_mode as 'pn' | 'lid',
 		subject: group.attrs.subject,
 		subjectOwner: group.attrs.s_o,
-		subjectOwnerPhoneNumber: group.attrs.s_o_pn,
-		subjectTime: +group.attrs.s_t,
+		subjectOwnerPn: group.attrs.s_o_pn ? jidNormalizedUser(group.attrs.s_o_pn) : undefined,
+		subjectTime: group.attrs.s_t ? +group.attrs.s_t : undefined,
 		size: groupSize || getBinaryNodeChildren(group, 'participant').length,
-		creation: +group.attrs.creation,
+		creation: group.attrs.creation ? +group.attrs.creation : undefined,
 		owner: group.attrs.creator ? jidNormalizedUser(group.attrs.creator) : undefined,
+		onwerPn: group.attrs.creator_pn ? jidNormalizedUser(group.attrs.creator_pn) : undefined,
 		desc,
 		descId,
 		descOwner,
-		descOwnerPhoneNumber,
+		descOwnerPn,
 		descTime,
 		linkedParent: getBinaryNodeChild(group, 'linked_parent')?.attrs.jid || undefined,
 		restrict: !!getBinaryNodeChild(group, 'locked'),
@@ -367,8 +368,8 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 		participants: getBinaryNodeChildren(group, 'participant').map(
 			({ attrs }) => {
 				return {
-					id: attrs.jid,
-					phoneNumber: attrs.phone_number || attrs.jid,
+					id: attrs.phone_number || attrs.jid,
+					lid: attrs.lid || attrs.jid,
 					admin: (attrs.type || null) as GroupParticipant['admin'],
 				}
 			}

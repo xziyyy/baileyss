@@ -942,6 +942,9 @@ export const normalizeMessageContent = (content: WAMessageContent | null | undef
 			 || message?.pollCreationMessageV5
 			 || message?.statusAddYours
 			 || message?.groupStatusMessage
+			 || message?.limitSharingMessage
+			 || message?.botTaskMessage
+			 || message?.questionMessage
 		 )
 	 }
 }
