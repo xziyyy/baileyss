@@ -1,6 +1,22 @@
-# <div align='center'>Baileys - Typescript/Javascript WhatsApp Web API</div>
+# <div align='center'>Baileys Modification</div>
 
-<div align="center"><img src="https://iili.io/2Zpjtlp.jpg"></div>
+<div align="center">
+
+  <img src="https://iili.io/2Zpjtlp.jpg" />
+
+  <a href="https://www.npmjs.com/package/baileys-mod">
+    <img src="https://img.shields.io/npm/v/baileys-mod?color=red&label=Version&logo=npm" alt="npm version" />
+  </a>
+
+  <a href="https://www.npmjs.com/package/baileys-mod">
+    <img src="https://img.shields.io/npm/dt/baileys-mod?color=red&label=Downloads&logo=npm" alt="npm downloads" />
+  </a>
+
+  <a href="https://whatsapp.com/channel/0029VaEe0l9Au3aVRw2x2r0V">
+    <img src="https://img.shields.io/badge/WhatsApp-Channel-25D366?logo=whatsapp&logoColor=white" alt="WhatsApp Channel" />
+  </a>
+
+</div>
 
 ## Important Note
 
