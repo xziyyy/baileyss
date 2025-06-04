@@ -330,7 +330,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		const { user, server } = jidDecode(jid)!
 		const statusJid = 'status@broadcast'
 		const isGroup = server === 'g.us'
-		const isNewsletter = server == 'newsletter'
+		const isNewsletter = server === 'newsletter'
 		const isStatus = jid === statusJid
 		const isLid = server === 'lid'
 
@@ -622,7 +622,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							},
 							content: [{
 								tag: 'native_flow',
-								attrs: { name: 'quick_reply' }
+								attrs: { v: '9', name: 'mixed' }
 							}]
 						}]
 				    });
