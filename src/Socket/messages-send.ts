@@ -4,10 +4,52 @@ import NodeCache from '@cacheable/node-cache'
 import { Readable } from 'stream'
 import { proto } from '../../WAProto'
 import { DEFAULT_CACHE_TTLS, WA_DEFAULT_EPHEMERAL } from '../Defaults'
-import { AnyMessageContent, MediaConnInfo, MessageReceiptType, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig, WAMediaUploadFunctionOpts, WAMessageKey } from '../Types'
-import { aggregateMessageKeysNotFromMe, assertMediaContent, bindWaitForEvent, decryptMediaRetryData, encodeNewsletterMessage, encodeSignedDeviceIdentity, encodeWAMessage, encryptMediaRetryRequest, extractDeviceJids, generateMessageID, generateMessageIDV2, generateWAMessage, getStatusCodeForMediaRetry, getUrlFromDirectPath, getWAUploadToServer, normalizeMessageContent, parseAndInjectE2ESessions, unixTimestampSeconds } from '../Utils'
+import {
+	AnyMessageContent,
+	MediaConnInfo,
+	MessageReceiptType,
+	MessageRelayOptions,
+	MiscMessageGenerationOptions,
+	SocketConfig,
+	WAMediaUploadFunctionOpts,
+	WAMessageKey
+} from '../Types'
+import { 
+	aggregateMessageKeysNotFromMe,
+	assertMediaContent,
+	bindWaitForEvent,
+	decryptMediaRetryData,
+	encodeNewsletterMessage,
+	encodeSignedDeviceIdentity,
+	encodeWAMessage,
+	encryptMediaRetryRequest,
+	extractDeviceJids,
+	generateMessageID,
+	generateMessageIDV2,
+	generateWAMessage,
+	getStatusCodeForMediaRetry,
+	getUrlFromDirectPath,
+	getWAUploadToServer,
+	normalizeMessageContent,
+	parseAndInjectE2ESessions,
+	unixTimestampSeconds
+} from '../Utils'
 import { getUrlInfo } from '../Utils/link-preview'
-import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidNewsletter, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, S_WHATSAPP_NET } from '../WABinary'
+import {
+	areJidsSameUser,
+	BinaryNode,
+	BinaryNodeAttributes,
+	getBinaryNodeChild,
+	getBinaryNodeChildren,
+	isJidGroup,
+	isJidNewsletter,
+	isJidUser,
+	jidDecode,
+	jidEncode,
+	jidNormalizedUser,
+	JidWithDevice,
+	S_WHATSAPP_NET
+} from '../WABinary'
 import { USyncQuery, USyncUser } from '../WAUSync'
 import { makeNewsletterSocket } from './newsletter'
 import ListType = proto.Message.ListMessage.ListType;
@@ -75,9 +117,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	/**
-     * generic send receipt function
-     * used for receipts of phone call, read, delivery etc.
-     * */
+	 * generic send receipt function
+	 * used for receipts of phone call, read, delivery etc.
+	 * */
 	const sendReceipt = async(jid: string, participant: string | undefined, messageIds: string[], type: MessageReceiptType) => {
 		const node: BinaryNode = {
 			tag: 'receipt',
@@ -280,16 +322,16 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	) => {
 		let patched = await patchMessageBeforeSending(message, jids)
 		if(!Array.isArray(patched)) {
-		  patched = jids ? jids.map(jid => ({ recipientJid: jid, ...patched })) : [patched]
+			patched = jids ? jids.map(jid => ({ recipientJid: jid, ...patched })) : [patched]
 		}
 
 		let shouldIncludeDeviceIdentity = false
 		const nodes = await Promise.all(
 			patched.map(
 				async patchedMessageWithJid => {
-				  const { recipientJid: jid, ...patchedMessage } = patchedMessageWithJid
-				  if(!jid) {
-					  return {} as BinaryNode
+					const { recipientJid: jid, ...patchedMessage } = patchedMessageWithJid
+					if(!jid) {
+						return {} as BinaryNode
 					}
 					const bytes = encodeWAMessage(patchedMessage)
 					const { type, ciphertext } = await signalRepository
@@ -418,7 +460,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					const patched = await patchMessageBeforeSending(message)
 
 					if(Array.isArray(patched)) {
-					  throw new Boom('Per-jid patching is not supported in groups')
+						throw new Boom('Per-jid patching is not supported in groups')
 					}
 
 					const bytes = encodeWAMessage(patched)
@@ -470,14 +512,14 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					await authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
 				} else if(isNewsletter) {
-				    // Message edit
-					if (message.protocolMessage?.editedMessage) {
+					// Message edit
+					if(message.protocolMessage?.editedMessage) {
 						msgId = message.protocolMessage.key?.id!
 						message = message.protocolMessage.editedMessage
 					}
 
 					// Message delete
-					if (message.protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE) {
+					if(message.protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE) {
 						msgId = message.protocolMessage.key?.id!
 						message = {}
 					}
@@ -485,7 +527,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					const patched = await patchMessageBeforeSending(message, [])
 
 					if(Array.isArray(patched)) {
-					  throw new Boom('Per-jid patching is not supported in channel')
+						throw new Boom('Per-jid patching is not supported in channel')
 					}
 
 					const bytes = encodeNewsletterMessage(patched)
@@ -608,25 +650,25 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				}
 
 				if(additionalNodes && additionalNodes.length > 0) {
-                   (stanza.content as BinaryNode[]).push(...additionalNodes);
+					(stanza.content as BinaryNode[]).push(...additionalNodes);
 				} else {
-				   if((isJidGroup(jid) || isJidUser(jid)) && (message?.viewOnceMessage?.message?.interactiveMessage || message?.viewOnceMessageV2?.message?.interactiveMessage || message?.viewOnceMessageV2Extension?.message?.interactiveMessage || message?.interactiveMessage) || (message?.viewOnceMessage?.message?.buttonsMessage || message?.viewOnceMessageV2?.message?.buttonsMessage || message?.viewOnceMessageV2Extension?.message?.buttonsMessage || message?.buttonsMessage)) {
-					(stanza.content as BinaryNode[]).push({
-						tag: 'biz',
-						attrs: {},
-						content: [{
-							tag: 'interactive',
-							attrs: {
-								type: 'native_flow',
-								v: '1'
-							},
+					if((isJidGroup(jid) || isJidUser(jid)) && (message?.viewOnceMessage?.message?.interactiveMessage || message?.viewOnceMessageV2?.message?.interactiveMessage || message?.viewOnceMessageV2Extension?.message?.interactiveMessage || message?.interactiveMessage) || (message?.viewOnceMessage?.message?.buttonsMessage || message?.viewOnceMessageV2?.message?.buttonsMessage || message?.viewOnceMessageV2Extension?.message?.buttonsMessage || message?.buttonsMessage)) {
+						(stanza.content as BinaryNode[]).push({
+							tag: 'biz',
+							attrs: {},
 							content: [{
-								tag: 'native_flow',
-								attrs: { v: '9', name: 'mixed' }
+								tag: 'interactive',
+								attrs: {
+									type: 'native_flow',
+									v: '1'
+								},
+								content: [{
+									tag: 'native_flow',
+									attrs: { v: '9', name: 'mixed' }
+								}]
 							}]
-						}]
-				    });
-				  }
+						});
+					}
 				}
 
 				logger.debug({ msgId }, `sending message to ${participants.length} devices`)
@@ -646,21 +688,21 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	const getTypeMessage = (msg: proto.IMessage) => {
-		if (msg.viewOnceMessage) {
+		if(msg.viewOnceMessage) {
 			return getTypeMessage(msg.viewOnceMessage.message!)
-		} else if (msg.viewOnceMessageV2) {
+		} else if(msg.viewOnceMessageV2) {
 			return getTypeMessage(msg.viewOnceMessageV2.message!)
-		} else if (msg.viewOnceMessageV2Extension) {
+		} else if(msg.viewOnceMessageV2Extension) {
 			return getTypeMessage(msg.viewOnceMessageV2Extension.message!)
-		} else if (msg.ephemeralMessage) {
+		} else if(msg.ephemeralMessage) {
 			return getTypeMessage(msg.ephemeralMessage.message!)
-		} else if (msg.documentWithCaptionMessage) {
+		} else if(msg.documentWithCaptionMessage) {
 			return getTypeMessage(msg.documentWithCaptionMessage.message!)
-		} else if (msg.reactionMessage) {
+		} else if(msg.reactionMessage) {
 			return 'reaction'
-		} else if (msg.pollCreationMessage || msg.pollCreationMessageV2 || msg.pollCreationMessageV3 || msg.pollUpdateMessage) {
+		} else if(msg.pollCreationMessage || msg.pollCreationMessageV2 || msg.pollCreationMessageV3 || msg.pollUpdateMessage) {
 			return 'poll'
-		} else if (getMediaType(msg)) {
+		} else if(getMediaType(msg)) {
 			return 'media'
 		} else {
 			return 'text'
@@ -775,7 +817,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		getButtonArgs,
 		readMessages,
 		refreshMediaConn,
-	        waUploadToServer,
+		waUploadToServer,
 		fetchPrivacySettings,
 		getUSyncDevices,
 		createParticipantNodes,
@@ -925,7 +967,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					})
 				}
 
-				if (mediaHandle) {
+				if(mediaHandle) {
 					additionalAttributes['media_id'] = mediaHandle
 				}
 
