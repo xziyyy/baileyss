@@ -136,7 +136,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		offerContent.push({ tag: 'audio', attrs: { enc: 'opus', rate: '16000' }, content: undefined })
 		offerContent.push({ tag: 'audio', attrs: { enc: 'opus', rate: '8000' }, content: undefined })
 
-		if (isVideo) {
+		if(isVideo) {
 			offerContent.push({
 				tag: 'video',
 				attrs: {
@@ -168,7 +168,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 		offerContent.push({ tag: 'destination', attrs: {}, content: destinations })
 
-		if (shouldIncludeDeviceIdentity) {
+		if(shouldIncludeDeviceIdentity) {
 			offerContent.push({
 				tag: 'device-identity',
 				attrs: {},
@@ -745,12 +745,13 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const isNodeFromMe = areJidsSameUser(attrs.participant || attrs.from, isLid ? authState.creds.me?.lid : authState.creds.me?.id)
 		const remoteJid = !isNodeFromMe || isJidGroup(attrs.from) ? attrs.from : attrs.recipient
 		const fromMe = !attrs.recipient || ((attrs.type === 'retry' || attrs.type === 'sender') && isNodeFromMe)
+		const participant = fromMe ? jidNormalizedUser(authState.creds.me?.id) : isLid ? attrs.participant_pn : attrs.participant
 
 		const key: proto.IMessageKey = {
 			remoteJid,
 			id: '',
 			fromMe,
-			participant: attrs.participant
+			participant
 		}
 
 		if(shouldIgnoreJid(remoteJid) && remoteJid !== '@s.whatsapp.net') {
@@ -833,6 +834,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	const handleNotification = async(node: BinaryNode) => {
 		const remoteJid = node.attrs.from
+		const isLid = remoteJid.endsWith('@lid')
+		const isNodeFromMe = areJidsSameUser(node.attrs.participant || remoteJid, isLid ? authState.creds.me?.lid : authState.creds.me?.id)
+		const fromMe = !node.attrs.recipient || ((node.attrs.type === 'retry' || node.attrs.type === 'sender') && isNodeFromMe)
+		const participant = fromMe ? jidNormalizedUser(authState.creds.me?.id) : isLid ? node.attrs.participant_pn : node.attrs.participant
+
 		if(shouldIgnoreJid(remoteJid) && remoteJid !== '@s.whatsapp.net') {
 			logger.debug({ remoteJid, id: node.attrs.id }, 'ignored notification')
 			await sendMessageAck(node)
@@ -845,11 +851,10 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					async() => {
 						const msg = await processNotification(node)
 						if(msg) {
-							const fromMe = areJidsSameUser(node.attrs.participant || remoteJid, authState.creds.me!.id)
 							msg.key = {
 								remoteJid,
 								fromMe,
-								participant: node.attrs.participant,
+								participant,
 								id: node.attrs.id,
 								...(msg.key || {})
 							}
@@ -947,6 +952,9 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						} else {
 							// no type in the receipt => message delivered
 							let type: MessageReceiptType = undefined
+							if(msg.key.participant?.endsWith('@lid')) {
+								msg.key.participant = node.attrs.participant_pn || authState.creds.me!.id
+							}
 							let participant = msg.key.participant
 							if(category === 'peer') { // special peer message
 								type = 'peer_msg'
