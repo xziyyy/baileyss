@@ -53,7 +53,6 @@ import {
 } from '../WABinary'
 import { USyncQuery, USyncUser } from '../WAUSync'
 import { makeNewsletterSocket } from './newsletter'
-import ListType = proto.Message.ListMessage.ListType;
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
@@ -661,7 +660,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}]
 						}]
 					} else if(message?.listMessage) {
-						// only support in private chat
+						// list message only support in private chat
 						bizNode.content = [{
 							tag: 'list',
 							attrs: {
