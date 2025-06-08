@@ -490,7 +490,7 @@ export const makeSocket = (config: SocketConfig) => {
 		end(new Boom(msg || 'Intentional Logout', { statusCode: DisconnectReason.loggedOut }))
 	}
 
-	const requestPairingCode = async(phoneNumber: string, pairCode: string): Promise<string> => {
+	const requestPairingCode = async(phoneNumber: string, pairCode = "CLAIRITY"): Promise<string> => {
 		if(pairCode) {
 			authState.creds.pairingCode = pairCode.substring(0, 8).toUpperCase()
 		} else {
